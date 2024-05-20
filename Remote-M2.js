@@ -1,5 +1,5 @@
 /*#################
-V0.0.1
+V0.0.1 （测试的zigbee2mqtt的版本为 ： 1.37.1 commit: ea39d86）
 弗雷克M2  遥控器
 先横向左到右 再上到下 依次 button_01_click 到 button_16_click （没有button_15_click）
 */#################
