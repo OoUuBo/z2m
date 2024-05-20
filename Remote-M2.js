@@ -32,93 +32,81 @@ const localDataPoints = {
     scene_data: 30,
     scene_switch: 52 //按键1-8
 };
-const localTz = {
-    ctl: {
-        key: ['identify','restorefactory','detectmode','far_detection','luxhighset','luxlowset','ledmode','ifluxsensorwork','daynighttime'],
-        convertSet: async (entity, key, value, meta) => {
-            if(key === 'identify'){
-                await tuya.sendDataPointBool(entity, localDataPoints.identify, value);
-            }
-            if(key === 'restorefactory'){
-                await tuya.sendDataPointBool(entity, localDataPoints.restorefactory, value);
-            }
-            if(key === 'detectmode'){
-                value = value.toLowerCase();
-                const lookup = {'presence': 0, 'motion': 1};
-                utils.validateValue(value, Object.keys(lookup));
-                value = lookup[value];            
-                await tuya.sendDataPointEnum(entity, localDataPoints.detectmode, value);
-            }
-            if(key === 'far_detection'){
-                await tuya.sendDataPointValue(entity, localDataPoints.far_detection, value);
-            }
-            if(key === 'luxhighset'){
-                await tuya.sendDataPointValue(entity, localDataPoints.luxhighset, value);
-            }
-            if(key === 'luxlowset'){
-                await tuya.sendDataPointValue(entity, localDataPoints.luxlowset, value);
-            }
-            if(key === 'ledmode'){
-                value = value.toLowerCase();
-                const lookup = {'breathing': 0, 'turnoff': 1,'nightlamp': 2};
-                utils.validateValue(value, Object.keys(lookup));
-                value = lookup[value];            
-                await tuya.sendDataPointEnum(entity, localDataPoints.ledmode, value);
-            }
-            if(key === 'ifluxsensorwork'){
-                value = value.toLowerCase();
-                const lookup = {'enable': 0, 'disable': 1};
-                utils.validateValue(value, Object.keys(lookup));
-                value = lookup[value];            
-                await tuya.sendDataPointEnum(entity, localDataPoints.ifluxsensorwork, value);
-            }
-            if(key === 'daynighttime'){
-                value = value.toLowerCase();
-                const lookup = {'daytime': 0, 'nighttime': 1};
-                utils.validateValue(value, Object.keys(lookup));
-                value = lookup[value];            
-                await tuya.sendDataPointEnum(entity, localDataPoints.daynighttime, value);
-            }
-        },
-    },
-};
 const localFz = {
     commandOn: {
         cluster: 'genOnOff',
         type: ['commandOn'],
-        convert: (model, msg, publish, options, meta) => {      
-            return {action: `button_01_click`};   
+        convert: (model, msg, publish, options, meta) => {
+            if (hasAlreadyProcessedMessage(msg, model)) return;
+            const payload = {action: `button_01_click`};
+            addActionGroup(payload, msg, model);
+            return payload;  
         },
     },
     commandOff: {
         cluster: 'genOnOff',
         type: ['commandOff'],
-        convert: (model, msg, publish, options, meta) => {      
-            return {action: `button_02_click`};   
+        convert: (model, msg, publish, options, meta) => { 
+            if (hasAlreadyProcessedMessage(msg, model)) return;
+            const payload = {action: `button_02_click`};
+            addActionGroup(payload, msg, model);
+            return payload; 
         },
     },
     levelCtrl: {
         cluster: 'genLevelCtrl',
         type: ['commandStep'],
         convert: (model, msg, publish, options, meta) => {  
-            
+            if (hasAlreadyProcessedMessage(msg, model)) return;
+            let payload;
             if( msg['data']['stepmode'] === 0) {
-                return {action: `button_03_click`};
+                payload = {action: `button_03_click`};
             }else{
-                return {action: `button_04_click`};
+                payload = {action: `button_04_click`};
             }
-           
+           addActionGroup(payload, msg, model);
+            return payload;
         },
     },
     colorCtrl: {
         cluster: 'lightingColorCtrl',
         type: ['commandStepColorTemp'],
-        convert: (model, msg, publish, options, meta) => {   
+        convert: (model, msg, publish, options, meta) => {  
+            if (hasAlreadyProcessedMessage(msg, model)) return;
+            let payload;
             if(msg['data']['stepmode'] === 3) {
-                return {action: `button_05_click`};
+                payload = {action: `button_05_click`};
             }else{
-                return {action: `button_06_click`};
+                payload = {action: `button_06_click`};
             }
+            addActionGroup(payload, msg, model);
+            return payload;
+        },
+    },
+    scene: {
+        cluster: 'genOnOff',
+        type: ['commandTuyaAction'],
+        convert: (model, msg, publish, options, meta) => {    
+            if (hasAlreadyProcessedMessage(msg, model)) return;
+            const buttonLookup = {
+                1: 'button_07',
+                2: 'button_08',
+                3: 'button_09',
+                4: 'button_10',
+                5: 'button_11',
+                6: 'button_12',
+                7: 'button_13',
+                8: 'button_14',
+            };
+            const button = buttonLookup[ msg["data"]["data"][1] ];
+            // return {action: `${ msg["data"]["data"] }`};
+            let payload;
+            if (button) {
+                payload =  {action: `${button}_click`};
+                // return {action: `${JSON.stringify(msg['data'])}`};
+            }
+             addActionGroup(payload, msg, model);
+            return payload;
         },
     },
     on_off: {
@@ -146,15 +134,19 @@ const localFz = {
     commandMoveToLevel: {
         cluster: 'genLevelCtrl',
         type: ['commandMoveToLevel'],
-        convert: (model, msg, publish, options, meta) => {        
-            return {action: `button_16_click`};  
+        convert: (model, msg, publish, options, meta) => {  
+            if (hasAlreadyProcessedMessage(msg, model)) return;
+            cosnt payload = {action: `button_16_click`};  
+            addActionGroup(payload, msg, model);
+            return payload;
         },
     },
     commandMoveToColorTemp: {
         cluster: 'lightingColorCtrl',
         type: ['commandMoveToColorTemp'],
-        convert: (model, msg, publish, options, meta) => {        
-            return {};  
+        convert: (model, msg, publish, options, meta) => {       
+            if (hasAlreadyProcessedMessage(msg, model)) return;
+            return;  
         },
     }
     
@@ -174,7 +166,7 @@ const definition = {
     model: 'M2',
     vendor: 'FORICK',
     description: '遥控器M2',
-    fromZigbee: [localFz.on_off,localFz.commandOn,localFz.commandOff,localFz.levelCtrl,localFz.colorCtrl,localFz.commandMoveToLevel,localFz.commandMoveToColorTemp],//,localFz.ctl
+    fromZigbee: [localFz.on_off,localFz.commandOn,localFz.commandOff,localFz.levelCtrl,localFz.colorCtrl,localFz.commandMoveToLevel,localFz.commandMoveToColorTemp,localFz.scene],//,localFz.ctl
     toZigbee: [],//,localTz.ctl
     onEvent: tuya.onEventSetTime, // Add this if you are getting no converter for 'commandMcuSyncTime'
     configure: tuya.configureMagicPacket,
